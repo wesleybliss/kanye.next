@@ -1,6 +1,16 @@
+import Cors from 'cors'
+import initMiddleware from '../../lib/init-middleware'
 import quotes from '../../quotes.json'
 
-export default function handler(req, res) {
+const cors = initMiddleware(
+    Cors({
+        methods: ['GET', 'OPTIONS'],
+    })
+)
+
+const handler = async (req, res) => {
+    
+    await cors(req, res)
     
     try {
         
@@ -18,3 +28,5 @@ export default function handler(req, res) {
     }
     
 }
+
+export default handler
