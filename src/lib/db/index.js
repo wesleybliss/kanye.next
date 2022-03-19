@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS quotes (
 `
 
 const root = process.env.IS_CI
-    ? path.join(process.env.DB_DIR, '../', process.env.DB_DIR)
+    ? path.join(__dirname, '../', process.env.DB_DIR)
     : process.env.DB_DIR
 
 console.log('STATS DEBUG', {
