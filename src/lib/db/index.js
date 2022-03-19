@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 `
 
+if (!fs.existsSync(process.env.DB_DIR))
+    fs.mkdirSync(process.env.DB_DIR)
+
 export const file = path.join(process.env.DB_DIR, 'quotes.db')
 export const db = sqlite(file)
 
