@@ -100,7 +100,7 @@ export const getStats = withConnect(async (col) => {
     ])
     
     const values = await res.toArray()
-    const { used, available } = values
+    const { used, available } = values[0]
     
     // Aggregate cursor omits empty results, so provide defaults
     return {
