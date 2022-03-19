@@ -11,19 +11,23 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 `
 
-if (!fs.existsSync(process.env.DB_DIR))
+if (!fs.existsSync(process.env.DB_DIR)) {
+    console.info('Creating database directory at', process.env.DB_DIR)
     fs.mkdirSync(process.env.DB_DIR)
+}
 
 export const file = path.join(process.env.DB_DIR, 'quotes.db')
+console.info('Creating database file at', file)
 export const db = sqlite(file)
 
+console.info('Creating database schema')
 db.exec(schema)
 
 const { count } = db.prepare('SELECT COUNT(*) AS `count` FROM quotes').get()
 
 // Seed the database, if needed
 if (count === 0) {
-    console.log('Seeding database', quotes.length, 'quotes')
+    console.log('Seeding the database with', quotes.length, 'quotes')
     const insert = db.prepare('INSERT INTO quotes (quote, used) VALUES (@quote, @used)')
     const insertMany = db.transaction(quotes => {
         for (const quote of quotes) insert.run(quote)
