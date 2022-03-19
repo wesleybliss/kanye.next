@@ -30,7 +30,9 @@ const env = loadEnvironment()
 
 env.PROJECT_ROOT = __dirname
 
-if (env.DB_DIR) {
+// Don't pre-configure database directory for
+// CI environments, as they're often ephemeral
+if (!process.env.IS_CI && env.DB_DIR) {
     env.DB_DIR = path.join(__dirname, env.DB_DIR)
     if (!fs.existsSync(env.DB_DIR))
         fs.mkdirSync(env.DB_DIR)
