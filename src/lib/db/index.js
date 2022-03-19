@@ -12,12 +12,16 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 `
 
-if (!fs.existsSync(process.env.DB_DIR)) {
-    console.info('Creating database directory at', process.env.DB_DIR)
-    fs.mkdirSync(process.env.DB_DIR)
+const root = process.env.IS_CI
+    ? path.join(process.env.DB_DIR, '../', process.env.DB_DIR)
+    : process.env.DB_DIR
+
+if (!fs.existsSync(root)) {
+    console.info('Creating database directory at', root)
+    fs.mkdirSync(root)
 }
 
-export const file = path.join(process.env.DB_DIR, 'quotes.db')
+export const file = path.join(root, 'quotes.db')
 console.info('Creating database file at', file)
 export const db = sqlite(file)
 
