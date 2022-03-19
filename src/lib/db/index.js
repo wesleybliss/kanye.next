@@ -22,6 +22,8 @@ console.log('STATS DEBUG', {
     CWD: __dirname,
     LS: fs.readdirSync(__dirname),
     UP: fs.readdirSync(path.join(__dirname, '..')),
+    root,
+    file: path.join(root, 'quotes.db'),
 })
 
 if (!fs.existsSync(root)) {
