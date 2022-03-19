@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import * as path from 'path'
 import * as utils from '../utils'
 import sqlite from 'better-sqlite3'
