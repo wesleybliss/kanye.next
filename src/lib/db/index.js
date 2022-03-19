@@ -16,6 +16,14 @@ const root = process.env.IS_CI
     ? path.join(process.env.DB_DIR, '../', process.env.DB_DIR)
     : process.env.DB_DIR
 
+console.log('STATS DEBUG', {
+    IS_CI: process.env.IS_CI,
+    DB_DIR: process.env.DB_DIR,
+    CWD: __dirname,
+    LS: fs.readdirSync(__dirname),
+    UP: fs.readdirSync(path.join(__dirname, '..')),
+})
+
 if (!fs.existsSync(root)) {
     console.info('Creating database directory at', root)
     fs.mkdirSync(root)
