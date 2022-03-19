@@ -1,6 +1,6 @@
 import Cors from 'cors'
 import initMiddleware from '../../lib/init-middleware'
-import quotes from '../../quotes.json'
+import { getStats } from '../../lib/db'
 
 const cors = initMiddleware(
     Cors({
@@ -14,13 +14,11 @@ const handler = async (req, res) => {
     
     try {
         
-        res.status(200).json({
-            total: quotes.length,
-        })
+        res.status(200).json(getStats())
         
     } catch (e) {
         
-        console.error('api/yeet', e)
+        console.error('api/stats', e)
         
         return res.status(500).json({ error: 'An unexpected error ocurred' })
         

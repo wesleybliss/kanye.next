@@ -1,6 +1,6 @@
 import Cors from 'cors'
 import initMiddleware from '../../lib/init-middleware'
-import quotes from '../../quotes.json'
+import { getRandomQuote } from '../../lib/db'
 
 const cors = initMiddleware(
     Cors({
@@ -14,10 +14,7 @@ const handler = async (req, res) => {
     
     try {
         
-        const quote = quotes[Math.floor(Math.random() * quotes.length)]
-        const json = JSON.stringify({ quote: quote })
-        
-        res.status(200).json(json)
+        res.status(200).json({ quote: getRandomQuote() })
         
     } catch (e) {
         
