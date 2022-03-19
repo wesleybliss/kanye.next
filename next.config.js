@@ -28,16 +28,6 @@ const loadEnvironment = () => {
 
 const env = loadEnvironment()
 
-env.PROJECT_ROOT = __dirname
-
-// Don't pre-configure database directory for
-// CI environments, as they're often ephemeral
-if (!process.env.IS_CI && env.DB_DIR) {
-    env.DB_DIR = path.join(__dirname, env.DB_DIR)
-    if (!fs.existsSync(env.DB_DIR))
-        fs.mkdirSync(env.DB_DIR)
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,

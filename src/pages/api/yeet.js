@@ -26,9 +26,6 @@ const corsOptions = {
 }
 
 const cors = initMiddleware(
-    /* Cors({
-        methods: ['GET', 'OPTIONS'],
-    }) */
     Cors(corsOptions)
 )
 
@@ -38,7 +35,9 @@ const handler = async (req, res) => {
     
     try {
         
-        res.status(200).json({ quote: getRandomQuote() })
+        const quote = await getRandomQuote()
+        
+        res.status(200).json(quote)
         
     } catch (e) {
         

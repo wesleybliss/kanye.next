@@ -1,10 +1,11 @@
 import Cors from 'cors'
+import { isValidAdminToken } from '../../lib/utils'
 import initMiddleware from '../../lib/init-middleware'
-import { getStats } from '../../lib/db'
+import { resetAll } from '../../lib/db'
 
 const cors = initMiddleware(
     Cors({
-        methods: ['GET', 'OPTIONS'],
+        methods: ['POST', 'OPTIONS'],
     })
 )
 
@@ -14,11 +15,15 @@ const handler = async (req, res) => {
     
     try {
         
-        res.status(200).json(await getStats())
+        if (!isValidAdminToken(req))
+            return res.status(401).json({ error: 'Unauthorized' })
+        
+        await resetAll()
+        res.status(200).json({ reset: 'ok' })
         
     } catch (e) {
         
-        console.error('api/stats', e)
+        console.error('api/reset', e)
         
         return res.status(500).json({ error: 'An unexpected error ocurred' })
         

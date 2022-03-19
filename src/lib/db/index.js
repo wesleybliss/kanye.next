@@ -1,78 +1,156 @@
-import * as fs from 'fs'
-import * as path from 'path'
-import * as utils from '../utils'
-import sqlite from 'better-sqlite3'
+import { MongoClient } from 'mongodb'
+import { v4 as uuidv4 } from 'uuid'
 import quotes from '../../quotes.json'
 
-const schema = `
-CREATE TABLE IF NOT EXISTS quotes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    quote TEXT UNIQUE NOT NULL,
-    used INT NOT NULL default 0
-);
-`
+const client = new MongoClient(process.env.MONGO_URI)
 
-const root = process.env.IS_CI
-    ? path.join(__dirname, '../', process.env.DB_DIR)
-    : process.env.DB_DIR
+/**
+ * Connects to MongoDB
+ * 
+ * @returns {Object} result
+ * @returns {Database} result.db
+ * @returns {Collection} result.col
+ */
+export const connect = async () => {
+    
+    await client.connect()
+    
+    const db = client.db(process.env.MONGO_DB)
+    const col = db.collection('quotes')
+    
+    return { db, col }
+    
+}
 
-console.log('STATS DEBUG', {
-    IS_CI: process.env.IS_CI,
-    DB_DIR: process.env.DB_DIR,
-    CWD: __dirname,
-    LS: fs.readdirSync(__dirname),
-    UP: fs.readdirSync(path.join(__dirname, '..')),
-    root,
-    file: path.join(root, 'quotes.db'),
+/**
+ * Wrapper for easily connecting to MongoDB,
+ * executing a query, and closing the connection when finished
+ * 
+ * @param {Function} fn Callback to execute a query using the connected database/collection
+ */
+export const withConnect = fn => async () => {
+    
+    try {
+        const { db, col } = await connect()
+        return await fn(col, db)
+    } catch (e) {
+        client.close()
+        throw e
+    }
+    
+}
+
+/**
+ * (INTERNAL) Initializes the database, seeding the
+ * quotes column with data if it's empty
+ */
+export const initialize = withConnect(async (col) => {
+    
+    try {
+        
+        const count = await col.count()
+        
+        if (count !== 0) {
+            // No need to seed
+            return // console.info('Database already populated (count:', count + ')')
+        }
+        
+        await col.insertMany(
+            quotes.map(quote => ({ quote, used: false })),
+        )
+        
+        console.log('Seeded database with', quotes.length, 'quotes')
+        
+    } catch (e) {
+        
+        console.error(e.description || e)
+        
+    }
+    
 })
 
-if (!fs.existsSync(root)) {
-    console.info('Creating database directory at', root)
-    fs.mkdirSync(root)
-}
-
-export const file = path.join(root, 'quotes.db')
-console.info('Creating database file at', file)
-export const db = sqlite(file)
-
-console.info('Creating database schema')
-db.exec(schema)
-
-const { count } = db.prepare('SELECT COUNT(*) AS `count` FROM quotes').get()
-
-// Seed the database, if needed
-if (count === 0) {
-    console.log('Seeding the database with', quotes.length, 'quotes')
-    const insert = db.prepare('INSERT INTO quotes (quote, used) VALUES (@quote, @used)')
-    const insertMany = db.transaction(quotes => {
-        for (const quote of quotes) insert.run(quote)
-    })
-    insertMany(quotes.map(it => ({ quote: it, used: 0 })))
-}
-
-// console.log(db.prepare('SELECT * from quotes limit 5').all())
-
-const getCountFor = used => {
-    const { count } = db.prepare(`SELECT COUNT(*) AS 'count' FROM quotes WHERE used = ${used}`).get()
-    return count
-}
-
-export const getRandomQuote = () => {
-    const { count } = db.prepare('SELECT COUNT(*) AS `count` FROM quotes WHERE used = 0').get()
-    const offset = utils.randomInt(0, count - 1)
-    return db.prepare(`
-        UPDATE quotes
-            SET used = 1
-            RETURNING *
-            LIMIT 1 OFFSET ${offset}
-    `).get()
-}
-
-export const getStats = () => {
+/**
+ * Gets quotes stats (used & available counts)
+ * 
+ * @returns {Object} result
+ * @returns {Number} result.used Used count
+ * @returns {Number} result.available Available count
+ */
+export const getStats = withConnect(async (col) => {
+    
+    const res = await col.aggregate([
+        {
+            $facet: {
+                used: [
+                    { $match: { used: true } },
+                    { $count: 'used' },
+                ],
+                available: [
+                    { $match: { used: false } },
+                    { $count: 'available' },
+                ],
+            },
+        },
+        {
+            $project: {
+                used: { $arrayElemAt: ['$used.used', 0] },
+                available: { $arrayElemAt: ['$available.available', 0] }
+            }
+        },
+    ])
+    
+    const values = await res.toArray()
+    const { used, available } = values
+    
+    // Aggregate cursor omits empty results, so provide defaults
     return {
-        used: getCountFor(1),
-        available: getCountFor(0),
+        used: used || 0,
+        available: available || 0,
     }
-}
+    
+})
 
-export default db
+/**
+ * Gets a random quote from the database
+ * and simultaneously marks it as used
+ * 
+ * @returns {Object} result
+ * @returns {String} result.quote Quote text
+ */
+export const getRandomQuote = withConnect(async (col) => {
+    
+    const usedId = uuidv4()
+    
+    const upsert = await col.aggregate([
+        { $match: { used: false } },
+        { $sample: { size: 1 } },
+        { $set: { used: true } },
+        { $set: { usedId } },
+        { $merge: 'quotes' },
+    ])
+    
+    // Required to commit changes from the aggregation
+    await upsert.next()
+    
+    const query = { usedId }
+    const options = { projection: { _id: 0, quote: 1 } }
+    
+    return await col.findOne(query, options)
+    
+})
+
+/**
+ * (INTERNAL) Resets all quotes in the database to unused
+ */
+export const resetAll = withConnect(async (col) => {
+    
+    const filter = { used: true }
+    const fields = {
+        $set: {
+            used: false,
+        }
+    }
+    
+    await col.updateMany(filter, fields)
+    
+})
